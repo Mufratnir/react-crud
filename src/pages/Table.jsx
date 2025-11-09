@@ -2,6 +2,8 @@ import Nav from "../component/Nav.jsx";
 import "../index.css";
 import Button from "../component/button.jsx";
 import { useEffect, useState } from "react";
+import Search from "../component/Search.jsx";
+import Pagination from "../component/Pagination.jsx";
 
 const Table = () => {
     const base_url = "http://localhost/api/php";
@@ -10,6 +12,10 @@ const Table = () => {
     const put_url = `${base_url}/put.php`;
     const delete_url = `${base_url}/delete.php`;
 
+
+    const [currentPage, setcurrentPage] = useState(1);
+    const [postsPerPage, setPostsPerPage] = useState(2);
+    const [filteredUsers, setFilteredUsers] = useState([]);
     const [users, setUsers] = useState([]);
     const [editMode, setEditMode] = useState(false);
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -20,8 +26,9 @@ const Table = () => {
         email: "",
         phone: "",
         website: "",
-    });
+    })
 
+    
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
@@ -44,7 +51,7 @@ const Table = () => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        const url = editMode ? `${put_url}?id=${formData.id}` : post_url;
+        const url = editMode ? put_url : post_url;
         const method = editMode ? "PUT" : "POST";
 
         fetch(url, {
@@ -55,11 +62,12 @@ const Table = () => {
             .then((res) => res.json())
             .then((data) => {
                 if (editMode) {
-                    setUsers(users.map((u) => (u.id === formData.id ? data : u)));
+                    mapTable();
                 } else {
                     setUsers([...users, data]);
                 }
                 resetForm();
+                fetchEvent()
             })
             .catch(console.error);
     };
@@ -77,26 +85,56 @@ const Table = () => {
             method: "DELETE",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ id }),
+        }).then(() => {
+            fetchEvent();
+            mapTable();
         })
-            .then((res) => res.json())
-            .then((result) => {
-                if (result.success) {
-                    setUsers(users.filter((u) => u.id !== id));
-                } else {
-                    console.error("Failed to delete:", result.message);
-                }
-            })
-            .catch(console.error);
+
+
     };
 
     // ✅ GET
     useEffect(() => {
+        fetchEvent()
+
+    }, []);
+    function fetchEvent(){
         fetch(get_url)
             .then((res) => res.json())
-            .then((data) => setUsers(data))
+            .then((data) => {
+                setUsers(data);
+                setFilteredUsers(data);
+            })
             .catch(console.error);
-    }, []);
+    }
 
+    function mapTable(){
+      return   currentPost;
+    }
+
+    const lastPostIndex = currentPage * postsPerPage;
+    const firstpostIndex = lastPostIndex - postsPerPage;
+    const currentPost =  filteredUsers.slice(firstpostIndex, lastPostIndex).map((user) => (
+        <tr
+            key={user.id}
+            className="table-body grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_1fr] border-t border-black p-6"
+        >
+            <td>{user.id}</td>
+            <td>{user.name}</td>
+            <td>{user.username}</td>
+            <td>{user.email}</td>
+            <td>{user.phone}</td>
+            <td>{user.website}</td>
+            <td>
+                <button onClick={() => handleEdit(user)}>
+                    <span className="material-symbols-outlined">edit</span>
+                </button>
+                <button onClick={() => handleDelete(user.id)}>
+                    <span className="material-symbols-outlined">delete</span>
+                </button>
+            </td>
+        </tr>
+    ));
     return (
         <>
             <Nav />
@@ -105,16 +143,7 @@ const Table = () => {
                     <div className="container ml-auto mr-auto">
                         <div className="header-wrapper flex justify-between items-center">
                             <h1 className="text-5xl">Admin</h1>
-                            <div className="search-box relative">
-                                <input
-                                    id="search"
-                                    placeholder="Search user ....."
-                                    className="bg-white h-12 pl-10 pr-2.5 rounded-4xl"
-                                />
-                                <div className="search-icon absolute top-[14px] left-[13px]">
-                                    <span className="material-symbols-outlined"> search </span>
-                                </div>
-                            </div>
+                            <Search  data={users} onFilter={setFilteredUsers}/>
                             <div>
                                 <Button title={"Add User"} value={() => setIsFormOpen(true)} />
                             </div>
@@ -133,6 +162,8 @@ const Table = () => {
                                     <span className="material-symbols-outlined"> close </span>
                                 </div>
                             </div>
+
+
                             <form className="w-full flex flex-col gap-5" onSubmit={handleSubmit}>
                                 {["name", "username", "email", "phone", "website"].map((field) => (
                                     <div className="flex flex-col gap-1.5" key={field}>
@@ -147,6 +178,10 @@ const Table = () => {
                                         />
                                     </div>
                                 ))}
+
+
+
+
                                 <Button
                                     title={editMode ? "✏️ Update User" : "➕ Submit User"}
                                 />
@@ -169,30 +204,17 @@ const Table = () => {
                         </tr>
                         </thead>
                         <tbody>
-                        {users.map((user) => (
-                            <tr
-                                key={user.id}
-                                className="table-body grid grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_1fr] border-t border-black p-6"
-                            >
-                                <td>{user.id}</td>
-                                <td>{user.name}</td>
-                                <td>{user.username}</td>
-                                <td>{user.email}</td>
-                                <td>{user.phone}</td>
-                                <td>{user.website}</td>
-                                <td>
-                                    <button onClick={() => handleEdit(user)}>
-                                        <span className="material-symbols-outlined">edit</span>
-                                    </button>
-                                    <button onClick={() => handleDelete(user.id)}>
-                                        <span className="material-symbols-outlined">delete</span>
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
+                        {        mapTable()     }
                         </tbody>
                     </table>
                 </section>
+
+                <Pagination
+                    totalPosts={filteredUsers.length}
+                    postsPerPage={postsPerPage}
+                    setCurrentPage={setcurrentPage}
+                    currentPage={currentPage}
+                />
             </div>
         </>
     );
